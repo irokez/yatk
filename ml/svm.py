@@ -7,7 +7,7 @@ import sys
 sys.path.append('/home/alexpak/tools/liblinear-1.8/python/')
 
 import liblinearutil as liblinear
-from .. import ml
+from yatk import ml
 import pickle
 
 class SVM(ml.Classifier):
@@ -22,11 +22,16 @@ class SVM(ml.Classifier):
 	def save(self, path):
 		liblinear.save_model(path + '-model', self._model)
 		del(self._model)
-		ml.Classifier.save(self, path)
+		f = open(path, 'wb')
+		pickle.dump((self._labels, self._features), f)
+		f.close()
 		
 	@staticmethod
 	def load(path):
-		obj = ml.Classifier.load(path)
+		obj = SVM()
+		f = open(path, 'rb')
+		obj._labels, obj._features = pickle.load(f)
+		f.close()
 		obj._model = liblinear.load_model(path + '-model')
 		return obj
 	
