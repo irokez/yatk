@@ -117,7 +117,6 @@ class FeatureSpace:
 		
 		self.start += size
 
-''' Returns function to check if the sample is in the test set '''
 def folds(samples, fold_num, fold_ord):
 	fold_size = round(len(samples) / fold_num)
 	fold_start = (fold_ord - 1) * fold_size

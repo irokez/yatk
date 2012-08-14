@@ -1,9 +1,12 @@
 import re
 import math
+import pickle
 from collections import Counter
 
+re_not_word = re.compile('^-+$')
+
 def tokenize(text):
-	return [word for word in re.split('[^\w\-]+', text) if len(word) > 0]
+	return [word for word in re.split('[^\w\-]+', text) if len(word) > 0 and not re_not_word.match(word)]
 
 def ngrams(words, order, sep=' '):
 	return [sep.join(words[n - order : n]) for n in range(order, len(words))]
@@ -81,6 +84,18 @@ class BaseIndex:
 	def __init__(self, weight = None, features = None):
 		self.set_weight_function(weight)
 		self.set_features_function(features)
+
+	def save(self, path):
+		f = open(path, 'wb')
+		pickle.dump(self, f)
+		f.close()
+	
+	@staticmethod
+	def load(path):
+		f = open(path, 'rb')
+		obj = pickle.load(f)
+		f.close()
+		return obj		
 	
 	def build(self, items):
 		pass
@@ -120,6 +135,7 @@ class NgramIndex(BaseIndex):
 		
 		self._features_functions['unigram'] = self.features_unigrams
 		self._features_functions['bigram'] = self.features_bigrams
+		self._features_functions['bogram'] = self.features_bograms
 		
 		BaseIndex.__init__(self, weight, features)
 	
@@ -157,10 +173,16 @@ class NgramIndex(BaseIndex):
 	
 	def features_bigrams(self, item):
 		return self.features_ngrams(item, 2)
+
+	def features_bograms(self, item):
+		return self.features_unigrams(item) + self.features_bigrams(item)
 	
 	def features_ngrams(self, item, ngram_order):
-		words = tokenize(item['text'].lower())
+		words = tokenize(self.get_text(item).lower())
 		return Counter(ngrams(words, ngram_order))
+
+	def get_text(self, item):
+		pass
 
 class SentimentIndex(NgramIndex):
 	CLASS_POS = 'pos'
@@ -211,7 +233,7 @@ class SentimentIndex(NgramIndex):
 		self._index = data
 		self._n_pos = n_pos
 		self._n_neg = n_neg
-		print(len(self._index))
+		# print(len(self._index))
 		
 	def weight_delta_idf(self, ngram, count):
 		return math.log((self._index[ngram]['df_pos'] + 0.5) / (self._index[ngram]['df_neg'] + 0.5)) if ngram in self._index else 0
@@ -224,3 +246,19 @@ class SentimentIndex(NgramIndex):
 	
 	def get_class(self, item):
 		pass
+
+	@staticmethod
+	def load(path, weight, features):
+		f = open(path, 'rb')
+		obj = pickle.load(f)
+		f.close()
+		me = SentimentIndex(weight, features)
+		me._index = obj['index']
+		me._n_pos = obj['n_pos']
+		me._n_neg = obj['n_neg']
+		return me
+
+	def save(self, path):
+		f = open(path, 'wb')
+		pickle.dump({'index': self._index, 'n_pos': self._n_pos, 'n_neg': self._n_neg}, f)
+		f.close()
